@@ -75,6 +75,7 @@
 
 @layer base {
   * { border-color: var(--color-border); }
+  html { font-size: 14px; }
   html, body, #root { height: 100%; }
   body {
     background-color: var(--color-background);
@@ -82,4 +83,10 @@
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto;
     -webkit-font-smoothing: antialiased;
   }
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar { display: none; }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
