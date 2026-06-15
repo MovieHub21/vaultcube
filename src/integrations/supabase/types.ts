@@ -14,13 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "balances"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          from_address: string | null
+          from_user_id: string | null
+          id: string
+          kind: string
+          network: string
+          note: string | null
+          to_address: string
+          to_user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          from_address?: string | null
+          from_user_id?: string | null
+          id?: string
+          kind?: string
+          network: string
+          note?: string | null
+          to_address: string
+          to_user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          from_address?: string | null
+          from_user_id?: string | null
+          id?: string
+          kind?: string
+          network?: string
+          note?: string | null
+          to_address?: string
+          to_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "balances"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "transactions_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "balances"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      wallet_addresses: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          network: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          network: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          network?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_addresses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "balances"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      balances: {
+        Row: {
+          amount: number | null
+          network: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      gen_wallet_address: { Args: { net: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
