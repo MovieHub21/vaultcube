@@ -47,6 +47,7 @@ export type Database = {
           note: string | null
           to_address: string
           to_user_id: string | null
+          token: string
         }
         Insert: {
           amount: number
@@ -59,6 +60,7 @@ export type Database = {
           note?: string | null
           to_address: string
           to_user_id?: string | null
+          token?: string
         }
         Update: {
           amount?: number
@@ -71,6 +73,7 @@ export type Database = {
           note?: string | null
           to_address?: string
           to_user_id?: string | null
+          token?: string
         }
         Relationships: []
       }
@@ -109,6 +112,14 @@ export type Database = {
         Returns: {
           amount: number
           network: string
+        }[]
+      }
+      get_my_token_balances: {
+        Args: never
+        Returns: {
+          amount: number
+          network: string
+          token: string
         }[]
       }
     }

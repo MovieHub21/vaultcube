@@ -40,13 +40,13 @@ function History() {
                 {incoming ? <ArrowDown className="w-5 h-5" /> : <ArrowUp className="w-5 h-5" />}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold">{incoming ? "Received" : "Sent"} {t.network}</div>
+                <div className="font-semibold">{incoming ? "Received" : "Sent"} {(t as { token?: string }).token ?? t.network}</div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {incoming ? `From ${t.from_address ?? "?"}` : `To ${t.to_address}`}
+                  {incoming ? `From ${t.from_address ?? "?"}` : `To ${t.to_address}`} · {t.network}
                 </div>
               </div>
               <div className={`font-semibold ${incoming ? "text-primary" : ""}`}>
-                {incoming ? "+" : "-"}{Number(t.amount).toFixed(4)}
+                {incoming ? "+" : "-"}{Number(t.amount).toFixed(4)} {(t as { token?: string }).token ?? t.network}
               </div>
             </div>
           );
