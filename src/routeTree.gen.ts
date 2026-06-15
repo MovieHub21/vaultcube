@@ -16,10 +16,14 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSwapRouteImport } from './routes/_authenticated/swap'
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedReceiveRouteImport } from './routes/_authenticated/receive'
+import { Route as AuthenticatedPerpsRouteImport } from './routes/_authenticated/perps'
+import { Route as AuthenticatedMarketsRouteImport } from './routes/_authenticated/markets'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
+import { Route as AuthenticatedCoinIdRouteImport } from './routes/_authenticated/coin.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -55,6 +59,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSwapRoute = AuthenticatedSwapRouteImport.update({
+  id: '/swap',
+  path: '/swap',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSendRoute = AuthenticatedSendRouteImport.update({
   id: '/send',
   path: '/send',
@@ -63,6 +72,16 @@ const AuthenticatedSendRoute = AuthenticatedSendRouteImport.update({
 const AuthenticatedReceiveRoute = AuthenticatedReceiveRouteImport.update({
   id: '/receive',
   path: '/receive',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPerpsRoute = AuthenticatedPerpsRouteImport.update({
+  id: '/perps',
+  path: '/perps',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMarketsRoute = AuthenticatedMarketsRouteImport.update({
+  id: '/markets',
+  path: '/markets',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
@@ -75,6 +94,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCoinIdRoute = AuthenticatedCoinIdRouteImport.update({
+  id: '/coin/$id',
+  path: '/coin/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -85,8 +109,12 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/markets': typeof AuthenticatedMarketsRoute
+  '/perps': typeof AuthenticatedPerpsRoute
   '/receive': typeof AuthenticatedReceiveRoute
   '/send': typeof AuthenticatedSendRoute
+  '/swap': typeof AuthenticatedSwapRoute
+  '/coin/$id': typeof AuthenticatedCoinIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -97,8 +125,12 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/markets': typeof AuthenticatedMarketsRoute
+  '/perps': typeof AuthenticatedPerpsRoute
   '/receive': typeof AuthenticatedReceiveRoute
   '/send': typeof AuthenticatedSendRoute
+  '/swap': typeof AuthenticatedSwapRoute
+  '/coin/$id': typeof AuthenticatedCoinIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -111,8 +143,12 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
+  '/_authenticated/markets': typeof AuthenticatedMarketsRoute
+  '/_authenticated/perps': typeof AuthenticatedPerpsRoute
   '/_authenticated/receive': typeof AuthenticatedReceiveRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
+  '/_authenticated/swap': typeof AuthenticatedSwapRoute
+  '/_authenticated/coin/$id': typeof AuthenticatedCoinIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -125,8 +161,12 @@ export interface FileRouteTypes {
     | '/signup'
     | '/history'
     | '/home'
+    | '/markets'
+    | '/perps'
     | '/receive'
     | '/send'
+    | '/swap'
+    | '/coin/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -137,8 +177,12 @@ export interface FileRouteTypes {
     | '/signup'
     | '/history'
     | '/home'
+    | '/markets'
+    | '/perps'
     | '/receive'
     | '/send'
+    | '/swap'
+    | '/coin/$id'
   id:
     | '__root__'
     | '/'
@@ -150,8 +194,12 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_authenticated/history'
     | '/_authenticated/home'
+    | '/_authenticated/markets'
+    | '/_authenticated/perps'
     | '/_authenticated/receive'
     | '/_authenticated/send'
+    | '/_authenticated/swap'
+    | '/_authenticated/coin/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -215,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/swap': {
+      id: '/_authenticated/swap'
+      path: '/swap'
+      fullPath: '/swap'
+      preLoaderRoute: typeof AuthenticatedSwapRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/send': {
       id: '/_authenticated/send'
       path: '/send'
@@ -227,6 +282,20 @@ declare module '@tanstack/react-router' {
       path: '/receive'
       fullPath: '/receive'
       preLoaderRoute: typeof AuthenticatedReceiveRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/perps': {
+      id: '/_authenticated/perps'
+      path: '/perps'
+      fullPath: '/perps'
+      preLoaderRoute: typeof AuthenticatedPerpsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/markets': {
+      id: '/_authenticated/markets'
+      path: '/markets'
+      fullPath: '/markets'
+      preLoaderRoute: typeof AuthenticatedMarketsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/home': {
@@ -243,21 +312,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/coin/$id': {
+      id: '/_authenticated/coin/$id'
+      path: '/coin/$id'
+      fullPath: '/coin/$id'
+      preLoaderRoute: typeof AuthenticatedCoinIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
+  AuthenticatedMarketsRoute: typeof AuthenticatedMarketsRoute
+  AuthenticatedPerpsRoute: typeof AuthenticatedPerpsRoute
   AuthenticatedReceiveRoute: typeof AuthenticatedReceiveRoute
   AuthenticatedSendRoute: typeof AuthenticatedSendRoute
+  AuthenticatedSwapRoute: typeof AuthenticatedSwapRoute
+  AuthenticatedCoinIdRoute: typeof AuthenticatedCoinIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
+  AuthenticatedMarketsRoute: AuthenticatedMarketsRoute,
+  AuthenticatedPerpsRoute: AuthenticatedPerpsRoute,
   AuthenticatedReceiveRoute: AuthenticatedReceiveRoute,
   AuthenticatedSendRoute: AuthenticatedSendRoute,
+  AuthenticatedSwapRoute: AuthenticatedSwapRoute,
+  AuthenticatedCoinIdRoute: AuthenticatedCoinIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

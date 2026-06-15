@@ -90,3 +90,8 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@utility safe-top { padding-top: max(env(safe-area-inset-top), 0.75rem); }
+@utility safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
+@utility safe-bottom-nav { bottom: max(env(safe-area-inset-bottom), 0.5rem); }
+
