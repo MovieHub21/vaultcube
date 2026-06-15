@@ -33,15 +33,7 @@ export type Database = {
           id?: string
           username?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "balances"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       transactions: {
         Row: {
@@ -80,22 +72,7 @@ export type Database = {
           to_address?: string
           to_user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "transactions_from_user_id_fkey"
-            columns: ["from_user_id"]
-            isOneToOne: false
-            referencedRelation: "balances"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "transactions_to_user_id_fkey"
-            columns: ["to_user_id"]
-            isOneToOne: false
-            referencedRelation: "balances"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       wallet_addresses: {
         Row: {
@@ -119,29 +96,21 @@ export type Database = {
           network?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "wallet_addresses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "balances"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-    }
-    Views: {
-      balances: {
-        Row: {
-          amount: number | null
-          network: string | null
-          user_id: string | null
-        }
         Relationships: []
       }
     }
+    Views: {
+      [_ in never]: never
+    }
     Functions: {
       gen_wallet_address: { Args: { net: string }; Returns: string }
+      get_my_balances: {
+        Args: never
+        Returns: {
+          amount: number
+          network: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
