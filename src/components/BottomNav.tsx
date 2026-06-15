@@ -12,10 +12,10 @@ export function BottomNav() {
   return (
     <nav className="fixed inset-x-0 safe-bottom-nav z-40 pointer-events-none">
       <div className="max-w-md mx-auto px-4 pointer-events-auto">
-        <div className="relative bg-surface-elevated/95 backdrop-blur border border-border rounded-full h-15 h-[60px] flex items-center justify-around px-3">
+        <div className="relative bg-surface-elevated/95 backdrop-blur border border-border rounded-full h-[60px] flex items-center justify-around px-3">
           <NavItem to="/home" label="Home" active={loc.pathname === "/home"} Icon={HomeIcon} />
           <NavItem to="/markets" label="Markets" active={loc.pathname.startsWith("/markets") || loc.pathname.startsWith("/coin")} Icon={TrendingUp} />
-          <div className="w-12" />
+          <div className="w-12 shrink-0" />
           <NavItem to="/perps" label="Perps" active={loc.pathname === "/perps"} Icon={InfinityIcon} />
           <NavItem to="/receive" label="Receive" active={loc.pathname === "/receive"} Icon={ArrowLeftRight} />
           <Link
@@ -26,6 +26,7 @@ export function BottomNav() {
             <ArrowLeftRight className="w-5 h-5" />
           </Link>
         </div>
+
       </div>
     </nav>
   );
