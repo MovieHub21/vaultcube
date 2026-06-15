@@ -1,0 +1,15 @@
+{
+  "name": "Vaultcube Wallet",
+  "short_name": "Vaultcube",
+  "description": "Multi-chain crypto wallet — send and receive across 9 networks.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1a1d22",
+  "theme_color": "#1a1d22",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
