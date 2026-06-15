@@ -1,18 +1,23 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getMyWallet, getMyTransactions, demoFund } from "@/lib/wallet.functions";
+import { getMyWallet, getMyTransactions, demoFund, getWatchlist, toggleWatchlist } from "@/lib/wallet.functions";
 import { PageShell } from "@/components/PageShell";
+import { BottomNav } from "@/components/BottomNav";
 import { TOKENS, tokenKey } from "@/lib/networks";
-import { ArrowUp, ArrowDown, Plus, RefreshCw, LogOut, History } from "lucide-react";
+import { ArrowUp, ArrowDown, Plus, RefreshCw, Settings, Search, ScanLine, RotateCw, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TokenIcon } from "@/components/TokenIcon";
+import { useMemo, useState } from "react";
+import { coingeckoId, fetchMarkets, formatPct } from "@/lib/coingecko";
 
 export const Route = createFileRoute("/_authenticated/home")({
   component: Home,
   head: () => ({ meta: [{ title: "Wallet — Vaultcube" }] }),
 });
+
+type Tab = "Crypto" | "Watchlist" | "NFTs";
 
 function Home() {
   const navigate = useNavigate();
@@ -20,28 +25,70 @@ function Home() {
   const fetchWallet = useServerFn(getMyWallet);
   const fetchTx = useServerFn(getMyTransactions);
   const fund = useServerFn(demoFund);
+  const getWl = useServerFn(getWatchlist);
+  const toggleWl = useServerFn(toggleWatchlist);
+  const [tab, setTab] = useState<Tab>("Crypto");
 
-  const { data: wallet, isLoading, refetch } = useQuery({ queryKey: ["wallet"], queryFn: () => fetchWallet() });
+  const { data: wallet, refetch } = useQuery({ queryKey: ["wallet"], queryFn: () => fetchWallet() });
   useQuery({ queryKey: ["transactions"], queryFn: () => fetchTx() });
+  const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: () => getWl() });
+
+  // All token coingecko ids we need prices for (held + popular + watchlist)
+  const allIds = useMemo(() => {
+    const ids = new Set<string>();
+    TOKENS.forEach((t) => { const id = coingeckoId(t.symbol, t.network); if (id) ids.add(id); });
+    watchlist.forEach((id) => ids.add(id));
+    return Array.from(ids);
+  }, [watchlist]);
+
+  const { data: markets } = useQuery({
+    queryKey: ["markets", allIds.join(",")],
+    queryFn: () => fetchMarkets(allIds, { perPage: 100, sparkline: false }),
+    refetchInterval: 60_000,
+    enabled: allIds.length > 0,
+  });
+  const priceMap = useMemo(() => {
+    const m = new Map<string, { price: number; change: number | null; image: string }>();
+    (markets ?? []).forEach((c) => m.set(c.id, { price: c.current_price, change: c.price_change_percentage_24h, image: c.image }));
+    return m;
+  }, [markets]);
+
+  const balances = wallet?.balances ?? [];
+  const held = TOKENS.map((t) => {
+    const b = balances.find((x) => x.network === t.network && x.token === t.symbol);
+    const amount = Number(b?.amount ?? 0);
+    const id = coingeckoId(t.symbol, t.network);
+    const live = id ? priceMap.get(id) : undefined;
+    const price = live?.price ?? t.priceUsd;
+    return { ...t, amount, price, change: live?.change ?? 0, image: live?.image, coingecko: id, usd: amount * price };
+  });
+  const total = held.reduce((s, h) => s + h.usd, 0);
+
+  // Sort: balances first (largest USD), then popular, then rest
+  const cryptoList = [...held].sort((a, b) => {
+    if (a.amount > 0 && b.amount === 0) return -1;
+    if (b.amount > 0 && a.amount === 0) return 1;
+    if (a.amount !== b.amount) return b.usd - a.usd;
+    return (b.popular ? 1 : 0) - (a.popular ? 1 : 0);
+  });
+
+  const watchSet = new Set(watchlist);
+  const watchedList = held.filter((h) => h.coingecko && watchSet.has(h.coingecko));
+
+  const wlMut = useMutation({
+    mutationFn: (coinId: string) => toggleWl({ data: { coinId } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["watchlist"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const fundMut = useMutation({
     mutationFn: () => fund({ data: { network: "ETH", token: "ETH", amount: 1 } }),
     onSuccess: () => {
       toast.success("Funded 1 ETH (demo)");
       qc.invalidateQueries({ queryKey: ["wallet"] });
-      qc.invalidateQueries({ queryKey: ["transactions"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const balances = wallet?.balances ?? [];
-  const held = TOKENS.map((t) => {
-    const b = balances.find((x) => x.network === t.network && x.token === t.symbol);
-    const amount = Number(b?.amount ?? 0);
-    return { ...t, amount, usd: amount * t.priceUsd };
-  });
-  const total = held.reduce((s, h) => s + h.usd, 0);
-  const visible = held.filter((h) => h.amount > 0 || h.popular);
 
   async function signOut() {
     await qc.cancelQueries();
@@ -51,62 +98,75 @@ function Home() {
   }
 
   return (
-    <PageShell className="pb-24">
+    <PageShell className="pb-28">
       <header className="flex items-center gap-2">
-        <button onClick={signOut} className="p-2 rounded-full bg-surface-elevated"><LogOut className="w-4 h-4" /></button>
-        <div className="flex-1 h-9 rounded-full bg-surface-elevated flex items-center px-3 text-muted-foreground text-xs">Search</div>
-        <button onClick={() => refetch()} className="p-2 rounded-full bg-surface-elevated"><RefreshCw className="w-4 h-4" /></button>
+        <button onClick={signOut} className="p-2 rounded-full bg-surface-elevated relative">
+          <Settings className="w-4 h-4" />
+          <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-destructive rounded-full" />
+        </button>
+        <div className="flex-1 h-10 rounded-full bg-surface-elevated flex items-center px-3 text-muted-foreground text-sm gap-2">
+          <Search className="w-4 h-4" /> Search
+        </div>
+        <button onClick={() => refetch()} className="p-2 rounded-full bg-surface-elevated"><ScanLine className="w-4 h-4" /></button>
       </header>
 
-      <div className="mt-6 flex flex-col items-center">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-elevated text-xs font-medium">
-          {wallet?.profile?.display_name ?? "Main Wallet"}
+      <div className="mt-7 flex flex-col items-center">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated text-sm font-medium relative">
+          {wallet?.profile?.display_name ?? "Main Wallet"} ›
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" />
         </div>
-        <div className="mt-4 text-4xl font-bold">${total.toFixed(2)}</div>
+        <div className="mt-5 text-5xl font-bold tracking-tight">${total.toFixed(2)}</div>
         <div className="text-muted-foreground text-xs mt-1">$0.00 (0.00%)</div>
       </div>
 
       <div className="mt-6 grid grid-cols-4 gap-2">
-        <ActionTile icon={<ArrowUp className="w-4 h-4" />} label="Send" onClick={() => navigate({ to: "/send" })} />
-        <ActionTile icon={<ArrowDown className="w-4 h-4" />} label="Receive" onClick={() => navigate({ to: "/receive" })} />
-        <ActionTile icon={<History className="w-4 h-4" />} label="History" onClick={() => navigate({ to: "/history" })} />
-        <ActionTile icon={<Plus className="w-4 h-4" />} label="Buy" highlight onClick={() => fundMut.mutate()} />
+        <ActionTile icon={<ArrowUp className="w-5 h-5" />} label="Send" onClick={() => navigate({ to: "/send" })} />
+        <ActionTile icon={<ArrowDown className="w-5 h-5" />} label="Receive" onClick={() => navigate({ to: "/receive" })} />
+        <ActionTile icon={<RotateCw className="w-5 h-5" />} label="Swap" onClick={() => navigate({ to: "/swap" })} />
+        <ActionTile icon={<Plus className="w-5 h-5" />} label="Buy" highlight onClick={() => fundMut.mutate()} />
       </div>
 
-      <div className="mt-6">
-        <h2 className="text-sm font-semibold mb-2 border-b-2 border-primary pb-1.5 inline-block">Crypto</h2>
-        <div className="mt-1 rounded-2xl bg-surface overflow-hidden divide-y divide-border">
-          {isLoading && <div className="p-5 text-center text-xs text-muted-foreground">Loading…</div>}
-          {visible.map((h) => (
-            <div key={tokenKey(h)} className="flex items-center gap-3 px-3 py-2.5">
-              <TokenIcon token={h} size={36} />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold flex items-center gap-1.5">
-                  {h.symbol}
-                  <span className="text-[10px] text-muted-foreground bg-surface-elevated px-1.5 py-0.5 rounded-md">{h.chainLabel}</span>
-                </div>
-                <div className="text-[11px] text-muted-foreground">${h.priceUsd.toLocaleString()}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-semibold">{h.amount.toFixed(4)}</div>
-                <div className="text-[11px] text-muted-foreground">${h.usd.toFixed(2)}</div>
-              </div>
-            </div>
-          ))}
+      <div className="mt-6 rounded-2xl bg-surface p-3 flex items-center gap-3">
+        <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center text-2xl shrink-0">🏆</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold leading-tight">Win 10,000 USDT — Trade Tournament</div>
+          <Link to="/markets" className="text-primary text-xs font-medium mt-1 inline-flex items-center gap-1">Dive in →</Link>
         </div>
       </div>
 
-      <nav className="fixed bottom-0 inset-x-0 max-w-md mx-auto px-4 pb-3">
-        <div className="bg-surface-elevated/95 backdrop-blur border border-border rounded-full h-14 flex items-center justify-around px-3">
-          <span className="text-primary text-[11px] font-medium">Home</span>
-          <Link to="/history" className="text-muted-foreground text-[11px]">History</Link>
-          <Link to="/send" className="bg-primary text-primary-foreground rounded-full w-11 h-11 flex items-center justify-center -mt-5">
-            <ArrowUp className="w-4 h-4" />
-          </Link>
-          <Link to="/receive" className="text-muted-foreground text-[11px]">Receive</Link>
-          <span className="text-muted-foreground text-[11px]">Discover</span>
-        </div>
-      </nav>
+      <div className="mt-5 flex items-center gap-5 border-b border-border">
+        {(["Crypto", "Watchlist", "NFTs"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`pb-2 text-base font-semibold relative ${tab === t ? "text-foreground" : "text-muted-foreground"}`}
+          >
+            {t}
+            {tab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary rounded-full" />}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2">
+        {tab === "Crypto" && (
+          <CoinList
+            items={cryptoList}
+            watchlist={watchSet}
+            onStar={(id) => wlMut.mutate(id)}
+            navigate={navigate}
+          />
+        )}
+        {tab === "Watchlist" && (
+          watchedList.length === 0 ? (
+            <EmptyState text="Tap the ★ on Markets or a coin to add to your watchlist." />
+          ) : (
+            <CoinList items={watchedList} watchlist={watchSet} onStar={(id) => wlMut.mutate(id)} navigate={navigate} />
+          )
+        )}
+        {tab === "NFTs" && <EmptyState text="No NFTs yet." />}
+      </div>
+
+      <BottomNav />
     </PageShell>
   );
 }
@@ -114,10 +174,73 @@ function Home() {
 function ActionTile({ icon, label, onClick, highlight }: { icon: React.ReactNode; label: string; onClick?: () => void; highlight?: boolean }) {
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-1.5">
-      <div className={`w-13 h-13 w-[52px] h-[52px] rounded-2xl flex items-center justify-center ${highlight ? "bg-primary text-primary-foreground" : "bg-surface-elevated"}`}>
+      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${highlight ? "bg-primary text-primary-foreground" : "bg-surface-elevated"}`}>
         {icon}
       </div>
-      <span className="text-[11px]">{label}</span>
+      <span className="text-xs">{label}</span>
     </button>
   );
+}
+
+type CoinItem = (typeof TOKENS)[number] & { amount: number; price: number; change: number; usd: number; image?: string; coingecko?: string };
+
+function CoinList({
+  items, watchlist, onStar, navigate,
+}: {
+  items: CoinItem[];
+  watchlist: Set<string>;
+  onStar: (id: string) => void;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  if (items.length === 0) return <EmptyState text="No assets" />;
+  return (
+    <div className="divide-y divide-border">
+      {items.map((h) => {
+        const starred = h.coingecko ? watchlist.has(h.coingecko) : false;
+        return (
+          <button
+            key={tokenKey(h)}
+            onClick={() => h.coingecko && navigate({ to: "/coin/$id", params: { id: h.coingecko } })}
+            className="w-full flex items-center gap-3 py-3 text-left"
+          >
+            {h.image ? (
+              <img src={h.image} alt={h.symbol} className="w-10 h-10 rounded-full shrink-0" />
+            ) : (
+              <TokenIcon token={h} size={40} />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="text-base font-bold truncate">{h.symbol}</div>
+              <div className="text-xs text-muted-foreground truncate">{h.chainLabel}</div>
+            </div>
+            <div className="text-right">
+              {h.amount > 0 ? (
+                <>
+                  <div className="text-base font-bold">${h.usd.toFixed(2)}</div>
+                  <div className="text-xs text-muted-foreground">{h.amount.toFixed(4)} {h.symbol}</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-base font-bold">${h.price < 1 ? h.price.toPrecision(3) : h.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                  <div className={`text-xs ${h.change >= 0 ? "text-primary" : "text-destructive"}`}>{formatPct(h.change)}</div>
+                </>
+              )}
+            </div>
+            {h.coingecko && (
+              <span
+                role="button"
+                onClick={(e) => { e.stopPropagation(); onStar(h.coingecko!); }}
+                className="p-1.5 ml-1"
+              >
+                <Star className={`w-4 h-4 ${starred ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="py-12 text-center text-xs text-muted-foreground">{text}</div>;
 }
