@@ -113,6 +113,9 @@ export const demoFund = createServerFn({ method: "POST" })
       amount: data.amount,
       note: "Demo faucet",
       kind: "faucet",
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const getWatchlist = createServerFn({ method: "GET" })
@@ -161,7 +164,6 @@ export const swapTokens = createServerFn({ method: "POST" })
     const { data: toAddr } = await supabase.from("wallet_addresses").select("address").eq("user_id", userId).eq("network", data.toNetwork).maybeSingle();
     if (!fromAddr || !toAddr) throw new Error("Wallet address missing");
 
-    // Debit: send from user to "SWAP" (no to_user_id)
     const debit = await supabase.from("transactions").insert({
       from_user_id: userId, to_user_id: null,
       from_address: fromAddr.address, to_address: "SWAP",
@@ -170,7 +172,6 @@ export const swapTokens = createServerFn({ method: "POST" })
     });
     if (debit.error) throw new Error(debit.error.message);
 
-    // Credit: 90% of equivalent (10% fee already applied client-side)
     const credit = await supabase.from("transactions").insert({
       from_user_id: null, to_user_id: userId,
       from_address: "SWAP", to_address: toAddr.address,
@@ -182,6 +183,3 @@ export const swapTokens = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
