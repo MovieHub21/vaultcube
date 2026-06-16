@@ -246,7 +246,7 @@ function SendFlow({ token, balance, myAddress, onBack, prefillAddress }: { token
 
         <div className="flex-1" />
         <button
-          onClick={() => setStage(hasPasscode() ? "pin" : "processing")}
+          onClick={() => setStage("pin")}
           className="w-full h-12 rounded-full bg-primary text-primary-foreground font-semibold"
         >
           Confirm
@@ -254,6 +254,7 @@ function SendFlow({ token, balance, myAddress, onBack, prefillAddress }: { token
       </PageShell>
     );
   }
+
 
   function submitForm(e: React.FormEvent) {
     e.preventDefault();
