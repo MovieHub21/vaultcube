@@ -17,12 +17,14 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedSwapRouteImport } from './routes/_authenticated/swap'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedReceiveRouteImport } from './routes/_authenticated/receive'
 import { Route as AuthenticatedPerpsRouteImport } from './routes/_authenticated/perps'
 import { Route as AuthenticatedMarketsRouteImport } from './routes/_authenticated/markets'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedCoinIdRouteImport } from './routes/_authenticated/coin.$id'
 
 const SignupRoute = SignupRouteImport.update({
@@ -64,6 +66,11 @@ const AuthenticatedSwapRoute = AuthenticatedSwapRouteImport.update({
   path: '/swap',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSendRoute = AuthenticatedSendRouteImport.update({
   id: '/send',
   path: '/send',
@@ -94,6 +101,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCoinIdRoute = AuthenticatedCoinIdRouteImport.update({
   id: '/coin/$id',
   path: '/coin/$id',
@@ -107,12 +119,14 @@ export interface FileRoutesByFullPath {
   '/passcode': typeof PasscodeRoute
   '/ready': typeof ReadyRoute
   '/signup': typeof SignupRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
   '/markets': typeof AuthenticatedMarketsRoute
   '/perps': typeof AuthenticatedPerpsRoute
   '/receive': typeof AuthenticatedReceiveRoute
   '/send': typeof AuthenticatedSendRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/swap': typeof AuthenticatedSwapRoute
   '/coin/$id': typeof AuthenticatedCoinIdRoute
 }
@@ -123,12 +137,14 @@ export interface FileRoutesByTo {
   '/passcode': typeof PasscodeRoute
   '/ready': typeof ReadyRoute
   '/signup': typeof SignupRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
   '/markets': typeof AuthenticatedMarketsRoute
   '/perps': typeof AuthenticatedPerpsRoute
   '/receive': typeof AuthenticatedReceiveRoute
   '/send': typeof AuthenticatedSendRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/swap': typeof AuthenticatedSwapRoute
   '/coin/$id': typeof AuthenticatedCoinIdRoute
 }
@@ -141,12 +157,14 @@ export interface FileRoutesById {
   '/passcode': typeof PasscodeRoute
   '/ready': typeof ReadyRoute
   '/signup': typeof SignupRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/markets': typeof AuthenticatedMarketsRoute
   '/_authenticated/perps': typeof AuthenticatedPerpsRoute
   '/_authenticated/receive': typeof AuthenticatedReceiveRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/swap': typeof AuthenticatedSwapRoute
   '/_authenticated/coin/$id': typeof AuthenticatedCoinIdRoute
 }
@@ -159,12 +177,14 @@ export interface FileRouteTypes {
     | '/passcode'
     | '/ready'
     | '/signup'
+    | '/admin'
     | '/history'
     | '/home'
     | '/markets'
     | '/perps'
     | '/receive'
     | '/send'
+    | '/settings'
     | '/swap'
     | '/coin/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -175,12 +195,14 @@ export interface FileRouteTypes {
     | '/passcode'
     | '/ready'
     | '/signup'
+    | '/admin'
     | '/history'
     | '/home'
     | '/markets'
     | '/perps'
     | '/receive'
     | '/send'
+    | '/settings'
     | '/swap'
     | '/coin/$id'
   id:
@@ -192,12 +214,14 @@ export interface FileRouteTypes {
     | '/passcode'
     | '/ready'
     | '/signup'
+    | '/_authenticated/admin'
     | '/_authenticated/history'
     | '/_authenticated/home'
     | '/_authenticated/markets'
     | '/_authenticated/perps'
     | '/_authenticated/receive'
     | '/_authenticated/send'
+    | '/_authenticated/settings'
     | '/_authenticated/swap'
     | '/_authenticated/coin/$id'
   fileRoutesById: FileRoutesById
@@ -270,6 +294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSwapRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/send': {
       id: '/_authenticated/send'
       path: '/send'
@@ -312,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/coin/$id': {
       id: '/_authenticated/coin/$id'
       path: '/coin/$id'
@@ -323,23 +361,27 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedMarketsRoute: typeof AuthenticatedMarketsRoute
   AuthenticatedPerpsRoute: typeof AuthenticatedPerpsRoute
   AuthenticatedReceiveRoute: typeof AuthenticatedReceiveRoute
   AuthenticatedSendRoute: typeof AuthenticatedSendRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSwapRoute: typeof AuthenticatedSwapRoute
   AuthenticatedCoinIdRoute: typeof AuthenticatedCoinIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedMarketsRoute: AuthenticatedMarketsRoute,
   AuthenticatedPerpsRoute: AuthenticatedPerpsRoute,
   AuthenticatedReceiveRoute: AuthenticatedReceiveRoute,
   AuthenticatedSendRoute: AuthenticatedSendRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSwapRoute: AuthenticatedSwapRoute,
   AuthenticatedCoinIdRoute: AuthenticatedCoinIdRoute,
 }

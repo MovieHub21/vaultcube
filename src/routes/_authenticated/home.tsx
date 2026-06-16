@@ -5,12 +5,13 @@ import { getMyWallet, getMyTransactions, demoFund, getWatchlist, toggleWatchlist
 import { PageShell } from "@/components/PageShell";
 import { BottomNav } from "@/components/BottomNav";
 import { TOKENS, tokenKey } from "@/lib/networks";
-import { ArrowUp, ArrowDown, Plus, RefreshCw, Settings, Search, ScanLine, RotateCw, Star } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ArrowUp, ArrowDown, Plus, Settings, Search, ScanLine, RotateCw, Star } from "lucide-react";
 import { toast } from "sonner";
 import { TokenIcon } from "@/components/TokenIcon";
 import { useMemo, useState } from "react";
 import { coingeckoId, fetchMarkets, formatPct } from "@/lib/coingecko";
+import { QrScanModal } from "@/components/QrScanModal";
+import { coingeckoId as _ } from "@/lib/coingecko";
 
 export const Route = createFileRoute("/_authenticated/home")({
   component: Home,
@@ -28,12 +29,12 @@ function Home() {
   const getWl = useServerFn(getWatchlist);
   const toggleWl = useServerFn(toggleWatchlist);
   const [tab, setTab] = useState<Tab>("Crypto");
+  const [scanOpen, setScanOpen] = useState(false);
 
-  const { data: wallet, refetch } = useQuery({ queryKey: ["wallet"], queryFn: () => fetchWallet() });
+  const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: () => fetchWallet() });
   useQuery({ queryKey: ["transactions"], queryFn: () => fetchTx() });
   const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: () => getWl() });
 
-  // All token coingecko ids we need prices for (held + popular + watchlist)
   const allIds = useMemo(() => {
     const ids = new Set<string>();
     TOKENS.forEach((t) => { const id = coingeckoId(t.symbol, t.network); if (id) ids.add(id); });
@@ -64,7 +65,6 @@ function Home() {
   });
   const total = held.reduce((s, h) => s + h.usd, 0);
 
-  // Sort: balances first (largest USD), then popular, then rest
   const cryptoList = [...held].sort((a, b) => {
     if (a.amount > 0 && b.amount === 0) return -1;
     if (b.amount > 0 && a.amount === 0) return 1;
@@ -90,30 +90,32 @@ function Home() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  async function signOut() {
-    await qc.cancelQueries();
-    qc.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/onboarding", replace: true });
+  function handleScan({ address, network }: { address: string; network: string | null }) {
+    setScanOpen(false);
+    if (!network) {
+      toast.error("Couldn't detect a coin network from that QR code");
+      return;
+    }
+    navigate({ to: "/send", search: { address, network } as any });
   }
 
   return (
     <PageShell className="pb-28">
       <header className="flex items-center gap-2">
-        <button onClick={signOut} className="p-2 rounded-full bg-surface-elevated relative">
+        <Link to="/settings" className="p-2 rounded-full bg-surface-elevated">
           <Settings className="w-4 h-4" />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-destructive rounded-full" />
-        </button>
+        </Link>
         <div className="flex-1 h-10 rounded-full bg-surface-elevated flex items-center px-3 text-muted-foreground text-sm gap-2">
           <Search className="w-4 h-4" /> Search
         </div>
-        <button onClick={() => refetch()} className="p-2 rounded-full bg-surface-elevated"><ScanLine className="w-4 h-4" /></button>
+        <button onClick={() => setScanOpen(true)} className="p-2 rounded-full bg-surface-elevated" aria-label="Scan QR">
+          <ScanLine className="w-4 h-4" />
+        </button>
       </header>
 
       <div className="mt-7 flex flex-col items-center">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated text-sm font-medium relative">
           {wallet?.profile?.display_name ?? "Main Wallet"} ›
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" />
         </div>
         <div className="mt-5 text-5xl font-bold tracking-tight">${total.toFixed(2)}</div>
         <div className="text-muted-foreground text-xs mt-1">$0.00 (0.00%)</div>
@@ -149,12 +151,7 @@ function Home() {
 
       <div className="mt-2">
         {tab === "Crypto" && (
-          <CoinList
-            items={cryptoList}
-            watchlist={watchSet}
-            onStar={(id) => wlMut.mutate(id)}
-            navigate={navigate}
-          />
+          <CoinList items={cryptoList} watchlist={watchSet} onStar={(id) => wlMut.mutate(id)} navigate={navigate} />
         )}
         {tab === "Watchlist" && (
           watchedList.length === 0 ? (
@@ -167,6 +164,7 @@ function Home() {
       </div>
 
       <BottomNav />
+      {scanOpen && <QrScanModal onClose={() => setScanOpen(false)} onResult={handleScan} />}
     </PageShell>
   );
 }
@@ -184,9 +182,7 @@ function ActionTile({ icon, label, onClick, highlight }: { icon: React.ReactNode
 
 type CoinItem = (typeof TOKENS)[number] & { amount: number; price: number; change: number; usd: number; image?: string; coingecko?: string };
 
-function CoinList({
-  items, watchlist, onStar, navigate,
-}: {
+function CoinList({ items, watchlist, onStar, navigate }: {
   items: CoinItem[];
   watchlist: Set<string>;
   onStar: (id: string) => void;
