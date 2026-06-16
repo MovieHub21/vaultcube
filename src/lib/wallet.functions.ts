@@ -6,15 +6,18 @@ export const getMyWallet = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [addrs, bals, profile] = await Promise.all([
+    const [addrs, bals, profile, roles] = await Promise.all([
       supabase.from("wallet_addresses").select("network,address").eq("user_id", userId),
       supabase.rpc("get_my_token_balances"),
       supabase.from("profiles").select("username,display_name").eq("id", userId).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", userId),
     ]);
+    const isAdmin = (roles.data ?? []).some((r: { role: string }) => r.role === "admin");
     return {
       addresses: (addrs.data ?? []) as { network: string; address: string }[],
       balances: (bals.data ?? []) as { network: string; token: string; amount: number }[],
       profile: profile.data,
+      isAdmin,
     };
   });
 
@@ -45,7 +48,6 @@ export const sendFunds = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Recipient must own an address on the SAME network as the token
     const { data: recipient } = await supabase
       .from("wallet_addresses")
       .select("user_id,network,address")
@@ -183,3 +185,63 @@ export const swapTokens = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* ---------------------- Admin functions ---------------------- */
+
+export const adminListUsers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
+    const { data, error } = await context.supabase.rpc("admin_list_users");
+    if (error) throw new Error(error.message);
+    return (data ?? []) as { id: string; username: string; display_name: string | null; created_at: string }[];
+  });
+
+export const adminGetUserBalances = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
+    const { data: bals, error } = await context.supabase.rpc("admin_get_user_balances", { _user_id: data.userId });
+    if (error) throw new Error(error.message);
+    return (bals ?? []) as { network: string; token: string; amount: number }[];
+  });
+
+const AdminCreditSchema = z.object({
+  userId: z.string().uuid(),
+  network: z.string().min(2).max(10),
+  token: z.string().min(2).max(15),
+  amount: z.number().min(-1_000_000_000).max(1_000_000_000),
+  note: z.string().max(200).optional(),
+});
+
+export const adminCreditUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => AdminCreditSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: addr } = await supabaseAdmin
+      .from("wallet_addresses")
+      .select("address")
+      .eq("user_id", data.userId)
+      .eq("network", data.network)
+      .maybeSingle();
+    if (!addr) throw new Error("User has no address on that network");
+    const positive = data.amount >= 0;
+    const { error } = await supabaseAdmin.from("transactions").insert({
+      from_user_id: positive ? null : data.userId,
+      to_user_id: positive ? data.userId : null,
+      from_address: positive ? "ADMIN" : addr.address,
+      to_address: positive ? addr.address : "ADMIN",
+      network: data.network,
+      token: data.token,
+      amount: Math.abs(data.amount),
+      note: data.note ?? (positive ? "Admin credit" : "Admin debit"),
+      kind: positive ? "admin_credit" : "admin_debit",
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
