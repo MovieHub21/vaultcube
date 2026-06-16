@@ -65,6 +65,10 @@ function Home() {
     return { ...t, amount, price, change: live?.change ?? 0, image: live?.image, coingecko: id, usd: amount * price };
   });
   const total = held.reduce((s, h) => s + h.usd, 0);
+  const totalPrev = held.reduce((s, h) => s + (h.change ? h.usd / (1 + h.change / 100) : h.usd), 0);
+  const totalChangeUsd = total - totalPrev;
+  const totalChangePct = totalPrev > 0 ? (totalChangeUsd / totalPrev) * 100 : 0;
+
 
   const cryptoList = [...held].sort((a, b) => {
     if (a.amount > 0 && b.amount === 0) return -1;
