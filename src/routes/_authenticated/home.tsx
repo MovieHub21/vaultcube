@@ -117,7 +117,7 @@ function Home() {
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated text-sm font-medium relative">
           {wallet?.profile?.display_name ?? "Main Wallet"} ›
         </div>
-        <div className="mt-5 text-5xl font-bold tracking-tight">${total.toFixed(2)}</div>
+        <div className="mt-5 text-5xl font-bold tracking-tight">{fmtUsd(total)}</div>
         <div className="text-muted-foreground text-xs mt-1">$0.00 (0.00%)</div>
       </div>
 
