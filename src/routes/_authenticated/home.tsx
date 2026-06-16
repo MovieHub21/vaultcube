@@ -65,6 +65,10 @@ function Home() {
     return { ...t, amount, price, change: live?.change ?? 0, image: live?.image, coingecko: id, usd: amount * price };
   });
   const total = held.reduce((s, h) => s + h.usd, 0);
+  const totalPrev = held.reduce((s, h) => s + (h.change ? h.usd / (1 + h.change / 100) : h.usd), 0);
+  const totalChangeUsd = total - totalPrev;
+  const totalChangePct = totalPrev > 0 ? (totalChangeUsd / totalPrev) * 100 : 0;
+
 
   const cryptoList = [...held].sort((a, b) => {
     if (a.amount > 0 && b.amount === 0) return -1;
@@ -119,7 +123,10 @@ function Home() {
           {wallet?.profile?.display_name ?? "Main Wallet"} ›
         </div>
         <div className="mt-5 text-5xl font-bold tracking-tight">{fmtUsd(total)}</div>
-        <div className="text-muted-foreground text-xs mt-1">$0.00 (0.00%)</div>
+        <div className={`text-xs mt-1 ${totalChangeUsd >= 0 ? "text-primary" : "text-destructive"}`}>
+          {totalChangeUsd >= 0 ? "+" : "-"}{fmtUsd(Math.abs(totalChangeUsd))} ({formatPct(totalChangePct)})
+        </div>
+
       </div>
 
       <div className="mt-6 grid grid-cols-4 gap-2">
@@ -206,23 +213,21 @@ function CoinList({ items, watchlist, onStar, navigate }: {
               <TokenIcon token={h} size={40} />
             )}
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold truncate">{h.symbol}</div>
-              <div className="text-xs text-muted-foreground truncate">{h.chainLabel}</div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-base font-bold truncate">{h.symbol}</span>
+                <span className="text-[10px] text-muted-foreground bg-surface-elevated px-1.5 py-0.5 rounded-md whitespace-nowrap">{h.chainLabel}</span>
+              </div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                <span>${h.price < 1 ? h.price.toPrecision(3) : h.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                <span className={h.change >= 0 ? "text-primary" : "text-destructive"}>{formatPct(h.change)}</span>
+              </div>
             </div>
             <div className="text-right">
-              {h.amount > 0 ? (
-                <>
-                  <div className="text-base font-bold">{fmtUsd(h.usd)}</div>
-                  <div className="text-xs text-muted-foreground">{fmt(h.amount, 4)} {h.symbol}</div>
-                </>
-
-              ) : (
-                <>
-                  <div className="text-base font-bold">${h.price < 1 ? h.price.toPrecision(3) : h.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                  <div className={`text-xs ${h.change >= 0 ? "text-primary" : "text-destructive"}`}>{formatPct(h.change)}</div>
-                </>
-              )}
+              <div className="text-base font-bold">{h.amount > 0 ? fmtUsd(h.usd) : "$0.00"}</div>
+              <div className="text-xs text-muted-foreground">{fmt(h.amount, 4)} {h.symbol}</div>
             </div>
+
+
             {h.coingecko && (
               <span
                 role="button"
