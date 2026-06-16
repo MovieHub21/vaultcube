@@ -212,9 +212,10 @@ function CoinList({ items, watchlist, onStar, navigate }: {
             <div className="text-right">
               {h.amount > 0 ? (
                 <>
-                  <div className="text-base font-bold">${h.usd.toFixed(2)}</div>
-                  <div className="text-xs text-muted-foreground">{h.amount.toFixed(4)} {h.symbol}</div>
+                  <div className="text-base font-bold">{fmtUsd(h.usd)}</div>
+                  <div className="text-xs text-muted-foreground">{fmt(h.amount, 4)} {h.symbol}</div>
                 </>
+
               ) : (
                 <>
                   <div className="text-base font-bold">${h.price < 1 ? h.price.toPrecision(3) : h.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
