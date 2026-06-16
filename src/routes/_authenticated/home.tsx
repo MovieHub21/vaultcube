@@ -11,7 +11,7 @@ import { TokenIcon } from "@/components/TokenIcon";
 import { useMemo, useState } from "react";
 import { coingeckoId, fetchMarkets, formatPct } from "@/lib/coingecko";
 import { QrScanModal } from "@/components/QrScanModal";
-import { coingeckoId as _ } from "@/lib/coingecko";
+
 
 export const Route = createFileRoute("/_authenticated/home")({
   component: Home,
