@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMyWallet, sendFunds } from "@/lib/wallet.functions";
@@ -8,19 +8,33 @@ import { NETWORKS, TOKENS, tokenKey, type NetworkCode, type Token } from "@/lib/
 import { useMemo, useState } from "react";
 import { ArrowLeft, Search, FileSearch } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const SendSearch = z.object({
+  address: z.string().optional(),
+  network: z.string().optional(),
+  token: z.string().optional(),
+});
 
 export const Route = createFileRoute("/_authenticated/send")({
   component: Send,
+  validateSearch: (s) => SendSearch.parse(s),
   head: () => ({ meta: [{ title: "Send — Vaultcube" }] }),
 });
 
 function Send() {
+  const search = useSearch({ from: "/_authenticated/send" });
   const fetchWallet = useServerFn(getMyWallet);
   const { data } = useQuery({ queryKey: ["wallet"], queryFn: () => fetchWallet() });
 
-  const [filter, setFilter] = useState<"ALL" | NetworkCode>("ALL");
+  const [filter, setFilter] = useState<"ALL" | NetworkCode>((search.network as NetworkCode) ?? "ALL");
   const [q, setQ] = useState("");
-  const [picked, setPicked] = useState<Token | null>(null);
+  const [picked, setPicked] = useState<Token | null>(() => {
+    if (search.token && search.network) {
+      return TOKENS.find((t) => t.symbol === search.token && t.network === search.network) ?? null;
+    }
+    return null;
+  });
 
   const held = useMemo(() => {
     const bals = data?.balances ?? [];
@@ -38,7 +52,16 @@ function Send() {
     });
   }, [held, filter, q]);
 
-  if (picked) return <SendForm token={picked} balance={held.find((h) => tokenKey(h) === tokenKey(picked))?.amount ?? 0} onBack={() => setPicked(null)} />;
+  if (picked) {
+    return (
+      <SendForm
+        token={picked}
+        balance={held.find((h) => tokenKey(h) === tokenKey(picked))?.amount ?? 0}
+        prefillAddress={search.address}
+        onBack={() => setPicked(null)}
+      />
+    );
+  }
 
   return (
     <PageShell>
@@ -48,14 +71,17 @@ function Send() {
         <span className="w-7" />
       </header>
 
+      {search.address && (
+        <div className="rounded-2xl bg-primary/10 border border-primary/30 p-3 mb-3">
+          <div className="text-[11px] text-primary font-semibold uppercase tracking-wide">Scanned address</div>
+          <div className="text-xs font-mono break-all mt-1">{search.address}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">Pick the asset you want to send.</div>
+        </div>
+      )}
+
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search"
-          className="w-full h-10 pl-9 pr-3 rounded-full bg-surface-elevated text-sm outline-none"
-        />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="w-full h-10 pl-9 pr-3 rounded-full bg-surface-elevated outline-none" />
       </div>
 
       <ChainFilter value={filter} onChange={setFilter} />
@@ -69,11 +95,7 @@ function Send() {
       ) : (
         <div className="mt-2 -mx-1">
           {filtered.map((t) => (
-            <button
-              key={tokenKey(t)}
-              onClick={() => setPicked(t)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-surface-elevated"
-            >
+            <button key={tokenKey(t)} onClick={() => setPicked(t)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-surface-elevated">
               <TokenIcon token={t} size={38} />
               <div className="flex-1 min-w-0 text-left">
                 <div className="text-sm font-semibold flex items-center gap-1.5">
@@ -99,13 +121,7 @@ function ChainFilter({ value, onChange }: { value: "ALL" | NetworkCode; onChange
     <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 mt-3 no-scrollbar">
       <FilterChip active={value === "ALL"} onClick={() => onChange("ALL")} label="All" />
       {NETWORKS.map((n) => (
-        <button
-          key={n.code}
-          onClick={() => onChange(n.code)}
-          className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-sm border-2 ${value === n.code ? "border-primary" : "border-transparent"}`}
-          style={{ background: n.color }}
-          title={n.name}
-        >
+        <button key={n.code} onClick={() => onChange(n.code)} className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-sm border-2 ${value === n.code ? "border-primary" : "border-transparent"}`} style={{ background: n.color }} title={n.name}>
           {n.emoji}
         </button>
       ))}
@@ -115,20 +131,17 @@ function ChainFilter({ value, onChange }: { value: "ALL" | NetworkCode; onChange
 
 function FilterChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 h-11 px-4 rounded-xl border-2 text-sm font-semibold ${active ? "border-primary text-primary" : "border-border text-foreground"}`}
-    >
+    <button onClick={onClick} className={`shrink-0 h-11 px-4 rounded-xl border-2 text-sm font-semibold ${active ? "border-primary text-primary" : "border-border text-foreground"}`}>
       {label}
     </button>
   );
 }
 
-function SendForm({ token, balance, onBack }: { token: Token; balance: number; onBack: () => void }) {
+function SendForm({ token, balance, onBack, prefillAddress }: { token: Token; balance: number; onBack: () => void; prefillAddress?: string }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const send = useServerFn(sendFunds);
-  const [to, setTo] = useState("");
+  const [to, setTo] = useState(prefillAddress ?? "");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
 
@@ -173,45 +186,21 @@ function SendForm({ token, balance, onBack }: { token: Token; balance: number; o
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3 flex-1">
         <div>
           <label className="text-[11px] text-muted-foreground">Recipient {token.chainLabel} address</label>
-          <textarea
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            placeholder={`Paste address`}
-            rows={2}
-            className="mt-1 w-full p-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary font-mono text-xs resize-none"
-          />
+          <textarea value={to} onChange={(e) => setTo(e.target.value)} placeholder="Paste address" rows={2} className="mt-1 w-full p-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary font-mono text-xs resize-none" />
         </div>
         <div>
           <div className="flex justify-between items-baseline">
             <label className="text-[11px] text-muted-foreground">Amount</label>
-            <button type="button" onClick={() => setAmount(String(balance))} className="text-[11px] text-primary">
-              Max: {balance.toFixed(4)} {token.symbol}
-            </button>
+            <button type="button" onClick={() => setAmount(String(balance))} className="text-[11px] text-primary">Max: {balance.toFixed(4)} {token.symbol}</button>
           </div>
-          <input
-            type="number"
-            step="any"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            className="mt-1 w-full h-12 px-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary text-base"
-          />
+          <input type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="mt-1 w-full h-12 px-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary" />
         </div>
         <div>
           <label className="text-[11px] text-muted-foreground">Note (optional)</label>
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={200}
-            className="mt-1 w-full h-12 px-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary text-sm"
-          />
+          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} className="mt-1 w-full h-12 px-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary" />
         </div>
         <div className="flex-1" />
-        <button
-          type="submit"
-          disabled={mut.isPending}
-          className="w-full h-12 rounded-full bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-60"
-        >
+        <button type="submit" disabled={mut.isPending} className="w-full h-12 rounded-full bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-60">
           {mut.isPending ? "Sending…" : `Send ${token.symbol}`}
         </button>
       </form>

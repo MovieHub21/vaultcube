@@ -41,6 +41,7 @@ function Swap() {
   const [to, setTo] = useState<Token | null>(null);
   const [amount, setAmount] = useState("");
   const [picker, setPicker] = useState<null | "from" | "to">(null);
+  const [confirming, setConfirming] = useState(false);
 
   const balanceOf = (t: Token) => {
     const b = (wallet?.balances ?? []).find((x) => x.network === t.network && x.token === t.symbol);
@@ -49,7 +50,10 @@ function Swap() {
 
   const fromBal = balanceOf(from);
   const a = parseFloat(amount) || 0;
-  const toAmount = to ? (a * priceOf(from) * (1 - FEE)) / priceOf(to) : 0;
+  const fromUsd = a * priceOf(from);
+  const feeUsd = fromUsd * FEE;
+  const netUsd = fromUsd - feeUsd;
+  const toAmount = to ? netUsd / priceOf(to) : 0;
 
   const mut = useMutation({
     mutationFn: () => {
@@ -67,16 +71,24 @@ function Swap() {
       qc.invalidateQueries({ queryKey: ["wallet"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
       setAmount("");
+      setConfirming(false);
       navigate({ to: "/home" });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => { toast.error(e.message); setConfirming(false); },
   });
+
+  function openConfirm() {
+    if (!to) return toast.error("Select a destination token");
+    if (a <= 0) return toast.error("Enter an amount");
+    if (a > fromBal) return toast.error(`Insufficient ${from.symbol}`);
+    setConfirming(true);
+  }
 
   return (
     <PageShell className="pb-8">
       <header className="grid grid-cols-[auto_1fr_auto] items-center mb-6">
         <button onClick={() => navigate({ to: "/home" })} className="p-1.5 -ml-1.5"><X className="w-5 h-5" /></button>
-        <h1 className="text-lg font-semibold text-center">Swap</h1>
+        <h1 className="text-base font-semibold text-center">Swap</h1>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">Market <ChevronDown className="w-3 h-3" /></div>
       </header>
 
@@ -86,7 +98,8 @@ function Swap() {
           <input
             type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)}
             placeholder="0"
-            className="flex-1 min-w-0 bg-transparent text-4xl font-bold outline-none"
+            className="flex-1 min-w-0 bg-transparent !text-4xl font-bold outline-none"
+            style={{ fontSize: "2.25rem" }}
           />
           <button onClick={() => setPicker("from")} className="flex items-center gap-2 h-10 px-3 rounded-full bg-surface-elevated shrink-0">
             <TokenIcon token={from} size={24} />
@@ -95,7 +108,7 @@ function Swap() {
           </button>
         </div>
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span>${(a * priceOf(from)).toFixed(2)}</span>
+          <span>${fromUsd.toFixed(2)}</span>
           <button onClick={() => setAmount(String(fromBal))} className="text-primary font-medium">
             Bal: {fromBal.toFixed(4)} • Max
           </button>
@@ -130,7 +143,7 @@ function Swap() {
         </div>
         {to && (
           <div className="mt-2 text-xs text-muted-foreground">
-            ${(toAmount * priceOf(to)).toFixed(2)} · 10% fee included
+            ${(toAmount * priceOf(to)).toFixed(2)} · 10% fee
           </div>
         )}
       </div>
@@ -138,11 +151,11 @@ function Swap() {
       <div className="flex-1" />
 
       <button
-        onClick={() => mut.mutate()}
-        disabled={mut.isPending || !to || a <= 0 || a > fromBal}
+        onClick={openConfirm}
+        disabled={!to || a <= 0 || a > fromBal}
         className="w-full h-14 rounded-full bg-primary text-primary-foreground font-bold text-base disabled:opacity-40"
       >
-        {mut.isPending ? "Swapping…" : to ? `Swap ${from.symbol} → ${to.symbol}` : "Slide to Swap"}
+        {to ? `Review Swap` : "Select destination token"}
       </button>
 
       {picker && (
@@ -153,7 +166,84 @@ function Swap() {
           balanceOf={balanceOf}
         />
       )}
+
+      {confirming && to && (
+        <ConfirmModal
+          from={from} to={to} fromAmount={a} toAmount={toAmount}
+          fromPrice={priceOf(from)} toPrice={priceOf(to)} feeUsd={feeUsd}
+          pending={mut.isPending}
+          onClose={() => setConfirming(false)}
+          onConfirm={() => mut.mutate()}
+        />
+      )}
     </PageShell>
+  );
+}
+
+function ConfirmModal({
+  from, to, fromAmount, toAmount, fromPrice, toPrice, feeUsd, pending, onClose, onConfirm,
+}: {
+  from: Token; to: Token; fromAmount: number; toAmount: number; fromPrice: number; toPrice: number;
+  feeUsd: number; pending: boolean; onClose: () => void; onConfirm: () => void;
+}) {
+  const rate = toAmount / fromAmount;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-end" onClick={onClose}>
+      <div className="bg-background w-full max-w-md mx-auto rounded-t-3xl p-5 safe-bottom" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold">Confirm Swap</h2>
+          <button onClick={onClose} className="p-2"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="rounded-2xl bg-surface p-4 flex items-center gap-3">
+          <TokenIcon token={from} size={40} />
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] text-muted-foreground">You pay</div>
+            <div className="text-lg font-bold">{fromAmount} {from.symbol}</div>
+            <div className="text-[11px] text-muted-foreground">{from.chainLabel} · ${(fromAmount * fromPrice).toFixed(2)}</div>
+          </div>
+        </div>
+
+        <div className="flex justify-center -my-2 relative z-10">
+          <div className="w-9 h-9 rounded-full bg-background border-4 border-background flex items-center justify-center">
+            <div className="w-full h-full rounded-full bg-surface-elevated flex items-center justify-center">
+              <ArrowDown className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-surface p-4 flex items-center gap-3">
+          <TokenIcon token={to} size={40} />
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] text-muted-foreground">You receive (est.)</div>
+            <div className="text-lg font-bold">{toAmount.toFixed(6)} {to.symbol}</div>
+            <div className="text-[11px] text-muted-foreground">{to.chainLabel} · ${(toAmount * toPrice).toFixed(2)}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl bg-surface-elevated p-4 text-xs space-y-2">
+          <Row label="Rate" value={`1 ${from.symbol} ≈ ${rate.toFixed(6)} ${to.symbol}`} />
+          <Row label="Network fee (10%)" value={`$${feeUsd.toFixed(2)}`} highlight />
+          <Row label="Route" value={`${from.chainLabel} → ${to.chainLabel}`} />
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button onClick={onClose} className="h-12 rounded-full bg-surface-elevated font-semibold text-sm">Back</button>
+          <button onClick={onConfirm} disabled={pending} className="h-12 rounded-full bg-primary text-primary-foreground font-bold text-sm disabled:opacity-50">
+            {pending ? "Swapping…" : "Confirm Swap"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-semibold ${highlight ? "text-primary" : ""}`}>{value}</span>
+    </div>
   );
 }
 
@@ -172,7 +262,7 @@ function TokenPicker({ exclude, onPick, onClose, balanceOf }: {
         </div>
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="w-full h-10 pl-9 pr-3 rounded-full bg-surface-elevated text-sm outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="w-full h-10 pl-9 pr-3 rounded-full bg-surface-elevated outline-none" />
         </div>
         <div className="mt-3 overflow-y-auto divide-y divide-border">
           {list.map((t) => {

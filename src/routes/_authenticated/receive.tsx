@@ -1,21 +1,26 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getMyWallet } from "@/lib/wallet.functions";
 import { PageShell } from "@/components/PageShell";
 import { TokenIcon } from "@/components/TokenIcon";
 import { NETWORKS, TOKENS, tokenKey, type NetworkCode, type Token } from "@/lib/networks";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Search, Copy, QrCode, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const RxSearch = z.object({ network: z.string().optional(), token: z.string().optional() });
 
 export const Route = createFileRoute("/_authenticated/receive")({
   component: Receive,
+  validateSearch: (s) => RxSearch.parse(s),
   head: () => ({ meta: [{ title: "Receive — Vaultcube" }] }),
 });
 
 function Receive() {
+  const search = useSearch({ from: "/_authenticated/receive" });
   const fetchWallet = useServerFn(getMyWallet);
   const { data } = useQuery({ queryKey: ["wallet"], queryFn: () => fetchWallet() });
   const [filter, setFilter] = useState<"ALL" | NetworkCode>("ALL");
@@ -27,6 +32,16 @@ function Receive() {
     (data?.addresses ?? []).forEach((a) => m.set(a.network, a.address));
     return m;
   }, [data]);
+
+  // Auto-open QR if deep-linked
+  useEffect(() => {
+    if (search.token && search.network && data) {
+      const t = TOKENS.find((x) => x.symbol === search.token && x.network === search.network);
+      const addr = addrByNet.get(search.network);
+      if (t && addr) setQr({ token: t, address: addr });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.token, search.network, data]);
 
   const list = useMemo(() => {
     return TOKENS.filter((t) => {
@@ -54,26 +69,13 @@ function Receive() {
 
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search"
-          className="w-full h-10 pl-9 pr-3 rounded-full bg-surface-elevated text-sm outline-none"
-        />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="w-full h-10 pl-9 pr-3 rounded-full bg-surface-elevated outline-none" />
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 mt-3 no-scrollbar">
-        <button
-          onClick={() => setFilter("ALL")}
-          className={`shrink-0 h-11 px-4 rounded-xl border-2 text-sm font-semibold ${filter === "ALL" ? "border-primary text-primary" : "border-border"}`}
-        >All</button>
+        <button onClick={() => setFilter("ALL")} className={`shrink-0 h-11 px-4 rounded-xl border-2 text-sm font-semibold ${filter === "ALL" ? "border-primary text-primary" : "border-border"}`}>All</button>
         {NETWORKS.map((n) => (
-          <button
-            key={n.code}
-            onClick={() => setFilter(n.code)}
-            className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-sm border-2 ${filter === n.code ? "border-primary" : "border-transparent"}`}
-            style={{ background: n.color }}
-          >{n.emoji}</button>
+          <button key={n.code} onClick={() => setFilter(n.code)} className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-sm border-2 ${filter === n.code ? "border-primary" : "border-transparent"}`} style={{ background: n.color }}>{n.emoji}</button>
         ))}
       </div>
 
@@ -95,16 +97,8 @@ function Receive() {
   );
 }
 
-function TokenList({
-  tokens,
-  addrByNet,
-  onQr,
-  onCopy,
-}: {
-  tokens: Token[];
-  addrByNet: Map<string, string>;
-  onQr: (t: Token, a: string) => void;
-  onCopy: (a: string) => void;
+function TokenList({ tokens, addrByNet, onQr, onCopy }: {
+  tokens: Token[]; addrByNet: Map<string, string>; onQr: (t: Token, a: string) => void; onCopy: (a: string) => void;
 }) {
   return (
     <div className="mt-1">
@@ -121,12 +115,8 @@ function TokenList({
               </div>
               <div className="text-[11px] text-muted-foreground font-mono">{short}</div>
             </div>
-            <button onClick={() => onQr(t, addr)} className="w-9 h-9 rounded-full bg-surface-elevated flex items-center justify-center">
-              <QrCode className="w-4 h-4" />
-            </button>
-            <button onClick={() => onCopy(addr)} className="w-9 h-9 rounded-full bg-surface-elevated flex items-center justify-center">
-              <Copy className="w-4 h-4" />
-            </button>
+            <button onClick={() => onQr(t, addr)} className="w-9 h-9 rounded-full bg-surface-elevated flex items-center justify-center"><QrCode className="w-4 h-4" /></button>
+            <button onClick={() => onCopy(addr)} className="w-9 h-9 rounded-full bg-surface-elevated flex items-center justify-center"><Copy className="w-4 h-4" /></button>
           </div>
         );
       })}
