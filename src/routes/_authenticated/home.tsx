@@ -223,9 +223,10 @@ function CoinList({ items, watchlist, onStar, navigate }: {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-base font-bold">{fmt(h.amount, 4)}</div>
-              <div className="text-xs text-muted-foreground">{fmtUsd(h.usd)}</div>
+              <div className="text-base font-bold">{h.amount > 0 ? fmtUsd(h.usd) : "$0.00"}</div>
+              <div className="text-xs text-muted-foreground">{fmt(h.amount, 4)} {h.symbol}</div>
             </div>
+
 
             {h.coingecko && (
               <span
