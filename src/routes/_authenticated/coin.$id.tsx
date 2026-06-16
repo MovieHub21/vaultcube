@@ -118,10 +118,18 @@ function CoinDetail() {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <button onClick={() => navigate({ to: "/send" })} className="h-11 rounded-full bg-surface-elevated text-sm font-semibold flex items-center justify-center gap-2">
+        <button
+          onClick={() => token && navigate({ to: "/send", search: { network: token.network, token: token.symbol } as any })}
+          disabled={!token}
+          className="h-11 rounded-full bg-surface-elevated text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+        >
           <ArrowUp className="w-4 h-4" /> Send
         </button>
-        <button onClick={() => navigate({ to: "/receive" })} className="h-11 rounded-full bg-surface-elevated text-sm font-semibold flex items-center justify-center gap-2">
+        <button
+          onClick={() => token && navigate({ to: "/receive", search: { network: token.network, token: token.symbol } as any })}
+          disabled={!token}
+          className="h-11 rounded-full bg-surface-elevated text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+        >
           <QrCode className="w-4 h-4" /> Receive
         </button>
       </div>
