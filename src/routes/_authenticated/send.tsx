@@ -349,8 +349,17 @@ function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode 
 }
 
 function PinModal({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
+  const navigate = useNavigate();
   const [pin, setPin] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const PIN_LEN = 6;
+
+  useEffect(() => {
+    if (!hasPasscode()) {
+      toast.info("Set a wallet PIN first");
+      navigate({ to: "/passcode" });
+    }
+  }, [navigate]);
 
   async function check(p: string) {
     if (await verifyPasscode(p)) onSuccess();
@@ -358,6 +367,13 @@ function PinModal({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: ()
       setErr("Incorrect PIN");
       setPin("");
     }
+  }
+
+  function press(d: string) {
+    setErr(null);
+    const next = (pin + d).slice(0, PIN_LEN);
+    setPin(next);
+    if (next.length === PIN_LEN) check(next);
   }
 
   return (
@@ -370,34 +386,19 @@ function PinModal({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: ()
       <div className="flex flex-col items-center flex-1 pt-8">
         <p className="text-sm text-muted-foreground mb-6">Confirm transaction with your wallet PIN</p>
         <div className="flex gap-3 mb-4">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
+          {Array.from({ length: PIN_LEN }).map((_, i) => (
             <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 ${i < pin.length ? "bg-primary border-primary" : "border-muted-foreground"}`} />
           ))}
         </div>
         {err && <p className="text-destructive text-xs mb-2">{err}</p>}
         <div className="grid grid-cols-3 gap-3 w-full max-w-xs mt-6">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button
-              key={n}
-              onClick={() => {
-                const next = (pin + String(n)).slice(0, 6);
-                setPin(next);
-                if (next.length >= 4) check(next);
-              }}
-              className="h-14 rounded-2xl bg-surface-elevated text-xl font-semibold active:bg-surface"
-            >
+            <button key={n} onClick={() => press(String(n))} className="h-14 rounded-2xl bg-surface-elevated text-xl font-semibold active:bg-surface">
               {n}
             </button>
           ))}
           <span />
-          <button
-            onClick={() => {
-              const next = (pin + "0").slice(0, 6);
-              setPin(next);
-              if (next.length >= 4) check(next);
-            }}
-            className="h-14 rounded-2xl bg-surface-elevated text-xl font-semibold active:bg-surface"
-          >0</button>
+          <button onClick={() => press("0")} className="h-14 rounded-2xl bg-surface-elevated text-xl font-semibold active:bg-surface">0</button>
           <button onClick={() => { setPin(pin.slice(0, -1)); setErr(null); }} className="h-14 rounded-2xl text-sm">Del</button>
         </div>
       </div>
