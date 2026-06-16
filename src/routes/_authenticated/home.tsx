@@ -213,23 +213,20 @@ function CoinList({ items, watchlist, onStar, navigate }: {
               <TokenIcon token={h} size={40} />
             )}
             <div className="flex-1 min-w-0">
-              <div className="text-base font-bold truncate">{h.symbol}</div>
-              <div className="text-xs text-muted-foreground truncate">{h.chainLabel}</div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-base font-bold truncate">{h.symbol}</span>
+                <span className="text-[10px] text-muted-foreground bg-surface-elevated px-1.5 py-0.5 rounded-md whitespace-nowrap">{h.chainLabel}</span>
+              </div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                <span>${h.price < 1 ? h.price.toPrecision(3) : h.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                <span className={h.change >= 0 ? "text-primary" : "text-destructive"}>{formatPct(h.change)}</span>
+              </div>
             </div>
             <div className="text-right">
-              {h.amount > 0 ? (
-                <>
-                  <div className="text-base font-bold">{fmtUsd(h.usd)}</div>
-                  <div className="text-xs text-muted-foreground">{fmt(h.amount, 4)} {h.symbol}</div>
-                </>
-
-              ) : (
-                <>
-                  <div className="text-base font-bold">${h.price < 1 ? h.price.toPrecision(3) : h.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                  <div className={`text-xs ${h.change >= 0 ? "text-primary" : "text-destructive"}`}>{formatPct(h.change)}</div>
-                </>
-              )}
+              <div className="text-base font-bold">{fmt(h.amount, 4)}</div>
+              <div className="text-xs text-muted-foreground">{fmtUsd(h.usd)}</div>
             </div>
+
             {h.coingecko && (
               <span
                 role="button"
