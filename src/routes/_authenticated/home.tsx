@@ -123,7 +123,10 @@ function Home() {
           {wallet?.profile?.display_name ?? "Main Wallet"} ›
         </div>
         <div className="mt-5 text-5xl font-bold tracking-tight">{fmtUsd(total)}</div>
-        <div className="text-muted-foreground text-xs mt-1">$0.00 (0.00%)</div>
+        <div className={`text-xs mt-1 ${totalChangeUsd >= 0 ? "text-primary" : "text-destructive"}`}>
+          {totalChangeUsd >= 0 ? "+" : "-"}{fmtUsd(Math.abs(totalChangeUsd))} ({formatPct(totalChangePct)})
+        </div>
+
       </div>
 
       <div className="mt-6 grid grid-cols-4 gap-2">
