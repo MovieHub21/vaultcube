@@ -72,7 +72,7 @@ export const sendFunds = createServerFn({ method: "POST" })
     );
     if (!bal || Number(bal.amount) < data.amount) throw new Error(`Insufficient ${data.token} balance`);
 
-    const { error } = await supabase.from("transactions").insert({
+    const { data: inserted, error } = await supabase.from("transactions").insert({
       from_user_id: userId,
       to_user_id: recipient.user_id,
       from_address: sender.address,
@@ -82,9 +82,9 @@ export const sendFunds = createServerFn({ method: "POST" })
       amount: data.amount,
       note: data.note,
       kind: "transfer",
-    });
+    }).select("id").single();
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, id: inserted?.id as string };
   });
 
 const FundSchema = z.object({

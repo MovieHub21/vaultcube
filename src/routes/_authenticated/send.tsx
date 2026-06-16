@@ -5,10 +5,13 @@ import { getMyWallet, sendFunds } from "@/lib/wallet.functions";
 import { PageShell } from "@/components/PageShell";
 import { TokenIcon } from "@/components/TokenIcon";
 import { NETWORKS, TOKENS, tokenKey, type NetworkCode, type Token } from "@/lib/networks";
-import { useMemo, useState } from "react";
-import { ArrowLeft, Search, FileSearch } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { ArrowLeft, Search, FileSearch, ScanLine, Check } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { fmt, fmtUsd, shortAddr, NETWORK_FEE_NATIVE, NETWORK_NATIVE_SYMBOL } from "@/lib/format";
+import { hasPasscode, verifyPasscode } from "@/lib/passcode";
+import { QrScanModal, detectNetwork } from "@/components/QrScanModal";
 
 const SendSearch = z.object({
   address: z.string().optional(),
@@ -52,11 +55,17 @@ function Send() {
     });
   }, [held, filter, q]);
 
+  const myAddress = useMemo(() => {
+    if (!picked) return "";
+    return data?.addresses.find((a) => a.network === picked.network)?.address ?? "";
+  }, [picked, data]);
+
   if (picked) {
     return (
-      <SendForm
+      <SendFlow
         token={picked}
         balance={held.find((h) => tokenKey(h) === tokenKey(picked))?.amount ?? 0}
+        myAddress={myAddress}
         prefillAddress={search.address}
         onBack={() => setPicked(null)}
       />
@@ -105,8 +114,8 @@ function Send() {
                 <div className="text-[11px] text-muted-foreground">{t.name}</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-semibold">{t.amount.toFixed(4)}</div>
-                <div className="text-[11px] text-muted-foreground">${(t.amount * t.priceUsd).toFixed(2)}</div>
+                <div className="text-sm font-semibold">{fmt(t.amount, 4)}</div>
+                <div className="text-[11px] text-muted-foreground">{fmtUsd(t.amount * t.priceUsd)}</div>
               </div>
             </button>
           ))}
@@ -137,30 +146,121 @@ function FilterChip({ active, onClick, label }: { active: boolean; onClick: () =
   );
 }
 
-function SendForm({ token, balance, onBack, prefillAddress }: { token: Token; balance: number; onBack: () => void; prefillAddress?: string }) {
+type Stage = "form" | "confirm" | "pin" | "processing" | "success";
+
+function SendFlow({ token, balance, myAddress, onBack, prefillAddress }: { token: Token; balance: number; myAddress: string; onBack: () => void; prefillAddress?: string }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const send = useServerFn(sendFunds);
+  const [stage, setStage] = useState<Stage>("form");
   const [to, setTo] = useState(prefillAddress ?? "");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
+  const [txId, setTxId] = useState<string | null>(null);
+
+  const amountNum = parseFloat(amount) || 0;
+  const feeNative = NETWORK_FEE_NATIVE[token.network as NetworkCode] ?? 0;
+  const nativeSym = NETWORK_NATIVE_SYMBOL[token.network as NetworkCode];
+  const nativePrice = TOKENS.find((t) => t.symbol === nativeSym && t.network === token.network)?.priceUsd ?? 0;
+  const feeUsd = feeNative * nativePrice;
+  const totalUsd = amountNum * token.priceUsd + feeUsd;
 
   const mut = useMutation({
-    mutationFn: () => send({ data: { toAddress: to.trim(), network: token.network, token: token.symbol, amount: parseFloat(amount), note: note || undefined } }),
-    onSuccess: () => {
-      toast.success(`Sent ${amount} ${token.symbol}`);
+    mutationFn: () => send({ data: { toAddress: to.trim(), network: token.network, token: token.symbol, amount: amountNum, note: note || undefined } }),
+    onSuccess: (res) => {
+      setTxId(res.id ?? null);
       qc.invalidateQueries({ queryKey: ["wallet"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
-      navigate({ to: "/home" });
+      setTimeout(() => setStage("success"), 2200);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      toast.error(e.message);
+      setStage("form");
+    },
   });
 
-  function submit(e: React.FormEvent) {
+  useEffect(() => {
+    if (stage === "processing") mut.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+
+  if (stage === "processing" || stage === "success") {
+    return (
+      <ProcessingScreen
+        success={stage === "success"}
+        onClose={() => {
+          if (txId) navigate({ to: "/tx/$id", params: { id: txId } });
+          else navigate({ to: "/home" });
+        }}
+        onDetails={() => txId && navigate({ to: "/tx/$id", params: { id: txId } })}
+      />
+    );
+  }
+
+  if (stage === "pin") {
+    return (
+      <PinModal
+        onCancel={() => setStage("confirm")}
+        onSuccess={() => setStage("processing")}
+      />
+    );
+  }
+
+  if (stage === "confirm") {
+    return (
+      <PageShell>
+        <header className="grid grid-cols-[auto_1fr_auto] items-center mb-5">
+          <button onClick={() => setStage("form")} className="p-1.5 -ml-1.5"><ArrowLeft className="w-5 h-5" /></button>
+          <h1 className="text-base font-semibold text-center">Confirm send</h1>
+          <span className="w-7" />
+        </header>
+
+        <div className="rounded-2xl bg-surface p-4 flex items-center gap-3 mb-3">
+          <TokenIcon token={token} size={44} />
+          <div className="min-w-0">
+            <div className="text-xl font-bold">{fmtUsd(amountNum * token.priceUsd)}</div>
+            <div className="text-xs text-muted-foreground">{fmt(amountNum, 6)} {token.symbol}</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-surface p-4 flex flex-col gap-3 mb-3">
+          <Row label="From" value={<div className="text-right"><div className="font-semibold">My Wallet</div><div className="text-[11px] text-muted-foreground font-mono">{shortAddr(myAddress)}</div></div>} />
+          <Row label="To" value={<span className="font-mono text-xs">{shortAddr(to)}</span>} />
+          <Row label="Network" value={<span className="font-semibold">{token.chainLabel}</span>} />
+        </div>
+
+        <div className="rounded-2xl bg-surface p-4 mb-3">
+          <Row label={<span className="flex items-center gap-1">Network fee</span>} value={
+            <div className="text-right">
+              <div className="font-semibold">{fmtUsd(feeUsd)}</div>
+              <div className="text-[11px] text-muted-foreground">{fmt(feeNative, 8)} {nativeSym}</div>
+            </div>
+          } />
+        </div>
+
+        <div className="flex items-center justify-between mb-4 px-1">
+          <span className="text-sm text-muted-foreground">Total cost</span>
+          <span className="text-base font-bold">{fmtUsd(totalUsd)}</span>
+        </div>
+
+        <div className="flex-1" />
+        <button
+          onClick={() => setStage(hasPasscode() ? "pin" : "processing")}
+          className="w-full h-12 rounded-full bg-primary text-primary-foreground font-semibold"
+        >
+          Confirm
+        </button>
+      </PageShell>
+    );
+  }
+
+  function submitForm(e: React.FormEvent) {
     e.preventDefault();
     const a = parseFloat(amount);
     if (!to.trim() || !a || a <= 0) return toast.error("Enter address and amount");
-    mut.mutate();
+    if (a > balance) return toast.error("Insufficient balance");
+    setStage("confirm");
   }
 
   return (
@@ -178,20 +278,36 @@ function SendForm({ token, balance, onBack, prefillAddress }: { token: Token; ba
           <div className="text-[11px] text-muted-foreground">{token.chainLabel}</div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-semibold">{balance.toFixed(4)}</div>
-          <div className="text-[11px] text-muted-foreground">${(balance * token.priceUsd).toFixed(2)}</div>
+          <div className="text-sm font-semibold">{fmt(balance, 4)}</div>
+          <div className="text-[11px] text-muted-foreground">{fmtUsd(balance * token.priceUsd)}</div>
         </div>
       </div>
 
-      <form onSubmit={submit} className="mt-4 flex flex-col gap-3 flex-1">
+      <form onSubmit={submitForm} className="mt-4 flex flex-col gap-3 flex-1">
         <div>
           <label className="text-[11px] text-muted-foreground">Recipient {token.chainLabel} address</label>
-          <textarea value={to} onChange={(e) => setTo(e.target.value)} placeholder="Paste address" rows={2} className="mt-1 w-full p-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary font-mono text-xs resize-none" />
+          <div className="relative mt-1">
+            <textarea
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="Paste address"
+              rows={2}
+              className="w-full p-3 pr-12 rounded-2xl bg-surface border border-border outline-none focus:border-primary font-mono text-xs resize-none"
+            />
+            <button
+              type="button"
+              onClick={() => setScanOpen(true)}
+              className="absolute top-2 right-2 p-2 rounded-xl bg-surface-elevated"
+              aria-label="Scan QR"
+            >
+              <ScanLine className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         <div>
           <div className="flex justify-between items-baseline">
             <label className="text-[11px] text-muted-foreground">Amount</label>
-            <button type="button" onClick={() => setAmount(String(balance))} className="text-[11px] text-primary">Max: {balance.toFixed(4)} {token.symbol}</button>
+            <button type="button" onClick={() => setAmount(String(balance))} className="text-[11px] text-primary">Max: {fmt(balance, 4)} {token.symbol}</button>
           </div>
           <input type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="mt-1 w-full h-12 px-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary" />
         </div>
@@ -200,10 +316,118 @@ function SendForm({ token, balance, onBack, prefillAddress }: { token: Token; ba
           <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} className="mt-1 w-full h-12 px-3 rounded-2xl bg-surface border border-border outline-none focus:border-primary" />
         </div>
         <div className="flex-1" />
-        <button type="submit" disabled={mut.isPending} className="w-full h-12 rounded-full bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-60">
-          {mut.isPending ? "Sending…" : `Send ${token.symbol}`}
+        <button type="submit" className="w-full h-12 rounded-full bg-primary text-primary-foreground font-semibold text-sm">
+          Preview
         </button>
       </form>
+
+      {scanOpen && (
+        <QrScanModal
+          onClose={() => setScanOpen(false)}
+          onResult={({ address }) => {
+            const detected = detectNetwork(address);
+            if (detected && detected !== token.network) {
+              toast.error(`That address looks like ${detected}, not ${token.chainLabel}`);
+            }
+            setTo(address);
+            setScanOpen(false);
+          }}
+        />
+      )}
+    </PageShell>
+  );
+}
+
+function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <div className="text-sm text-right min-w-0">{value}</div>
+    </div>
+  );
+}
+
+function PinModal({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  async function check(p: string) {
+    if (await verifyPasscode(p)) onSuccess();
+    else {
+      setErr("Incorrect PIN");
+      setPin("");
+    }
+  }
+
+  return (
+    <PageShell>
+      <header className="grid grid-cols-[auto_1fr_auto] items-center mb-8">
+        <button onClick={onCancel} className="p-1.5 -ml-1.5"><ArrowLeft className="w-5 h-5" /></button>
+        <h1 className="text-base font-semibold text-center">Enter PIN</h1>
+        <span className="w-7" />
+      </header>
+      <div className="flex flex-col items-center flex-1 pt-8">
+        <p className="text-sm text-muted-foreground mb-6">Confirm transaction with your wallet PIN</p>
+        <div className="flex gap-3 mb-4">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 ${i < pin.length ? "bg-primary border-primary" : "border-muted-foreground"}`} />
+          ))}
+        </div>
+        {err && <p className="text-destructive text-xs mb-2">{err}</p>}
+        <div className="grid grid-cols-3 gap-3 w-full max-w-xs mt-6">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button
+              key={n}
+              onClick={() => {
+                const next = (pin + String(n)).slice(0, 6);
+                setPin(next);
+                if (next.length >= 4) check(next);
+              }}
+              className="h-14 rounded-2xl bg-surface-elevated text-xl font-semibold active:bg-surface"
+            >
+              {n}
+            </button>
+          ))}
+          <span />
+          <button
+            onClick={() => {
+              const next = (pin + "0").slice(0, 6);
+              setPin(next);
+              if (next.length >= 4) check(next);
+            }}
+            className="h-14 rounded-2xl bg-surface-elevated text-xl font-semibold active:bg-surface"
+          >0</button>
+          <button onClick={() => { setPin(pin.slice(0, -1)); setErr(null); }} className="h-14 rounded-2xl text-sm">Del</button>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+function ProcessingScreen({ success, onClose, onDetails }: { success: boolean; onClose: () => void; onDetails: () => void }) {
+  return (
+    <PageShell>
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+        <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-6 ${success ? "bg-primary/20" : "bg-primary/10"}`}>
+          {success ? (
+            <Check className="w-16 h-16 text-primary" strokeWidth={3} />
+          ) : (
+            <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          )}
+        </div>
+        <h2 className="text-2xl font-bold mb-2">{success ? "Sent!" : "Processing…"}</h2>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          {success
+            ? "Your transaction was sent successfully."
+            : "Transaction in progress! Blockchain validation is underway. This may take a few seconds."}
+        </p>
+      </div>
+      {success && (
+        <div className="flex flex-col gap-2 mb-3">
+          <button onClick={onDetails} className="w-full h-12 rounded-full bg-primary text-primary-foreground font-semibold">Transaction details</button>
+          <button onClick={onClose} className="w-full h-12 rounded-full text-sm">Done</button>
+        </div>
+      )}
     </PageShell>
   );
 }

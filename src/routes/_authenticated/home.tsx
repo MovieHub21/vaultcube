@@ -11,6 +11,7 @@ import { TokenIcon } from "@/components/TokenIcon";
 import { useMemo, useState } from "react";
 import { coingeckoId, fetchMarkets, formatPct } from "@/lib/coingecko";
 import { QrScanModal } from "@/components/QrScanModal";
+import { fmt, fmtUsd } from "@/lib/format";
 
 
 export const Route = createFileRoute("/_authenticated/home")({
@@ -117,7 +118,7 @@ function Home() {
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated text-sm font-medium relative">
           {wallet?.profile?.display_name ?? "Main Wallet"} ›
         </div>
-        <div className="mt-5 text-5xl font-bold tracking-tight">${total.toFixed(2)}</div>
+        <div className="mt-5 text-5xl font-bold tracking-tight">{fmtUsd(total)}</div>
         <div className="text-muted-foreground text-xs mt-1">$0.00 (0.00%)</div>
       </div>
 
@@ -211,9 +212,10 @@ function CoinList({ items, watchlist, onStar, navigate }: {
             <div className="text-right">
               {h.amount > 0 ? (
                 <>
-                  <div className="text-base font-bold">${h.usd.toFixed(2)}</div>
-                  <div className="text-xs text-muted-foreground">{h.amount.toFixed(4)} {h.symbol}</div>
+                  <div className="text-base font-bold">{fmtUsd(h.usd)}</div>
+                  <div className="text-xs text-muted-foreground">{fmt(h.amount, 4)} {h.symbol}</div>
                 </>
+
               ) : (
                 <>
                   <div className="text-base font-bold">${h.price < 1 ? h.price.toPrecision(3) : h.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
