@@ -66,7 +66,7 @@ function Settings() {
         <LogOut className="w-4 h-4" /> Log out
       </button>
 
-      <p className="mt-6 text-center text-[11px] text-muted-foreground">Vaultcube · Demo wallet</p>
+      <p className="mt-6 text-center text-[11px] text-muted-foreground">Vaultcube</p>
     </PageShell>
   );
 }

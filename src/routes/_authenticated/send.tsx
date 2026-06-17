@@ -6,7 +6,7 @@ import { PageShell } from "@/components/PageShell";
 import { TokenIcon } from "@/components/TokenIcon";
 import { NETWORKS, TOKENS, tokenKey, type NetworkCode, type Token } from "@/lib/networks";
 import { useMemo, useState, useEffect } from "react";
-import { ArrowLeft, Search, FileSearch, ScanLine, Check } from "lucide-react";
+import { ArrowLeft, Search, FileSearch, ScanLine, Check, Delete } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { fmt, fmtUsd, shortAddr, NETWORK_FEE_NATIVE, NETWORK_NATIVE_SYMBOL } from "@/lib/format";
@@ -378,29 +378,40 @@ function PinModal({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: ()
 
   return (
     <PageShell>
-      <header className="grid grid-cols-[auto_1fr_auto] items-center mb-8">
-        <button onClick={onCancel} className="p-1.5 -ml-1.5"><ArrowLeft className="w-5 h-5" /></button>
-        <h1 className="text-base font-semibold text-center">Enter PIN</h1>
-        <span className="w-7" />
+      <header className="flex items-center justify-between mb-12">
+        <button onClick={onCancel} className="p-2 -ml-2"><ArrowLeft className="w-6 h-6" /></button>
+        <h1 className="font-semibold">Passcode</h1>
+        <span className="w-6" />
       </header>
-      <div className="flex flex-col items-center flex-1 pt-8">
-        <p className="text-sm text-muted-foreground mb-6">Confirm transaction with your wallet PIN</p>
-        <div className="flex gap-3 mb-4">
+      <div className="flex-1 flex flex-col items-center justify-center">
+        <h2 className="text-xl font-semibold mb-6">Enter passcode</h2>
+        <div className="flex gap-3 mb-6">
           {Array.from({ length: PIN_LEN }).map((_, i) => (
-            <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 ${i < pin.length ? "bg-primary border-primary" : "border-muted-foreground"}`} />
+            <div
+              key={i}
+              className={`w-10 h-12 rounded-xl border-2 ${i < pin.length ? "border-primary bg-primary/20" : "border-border"}`}
+            />
           ))}
         </div>
-        {err && <p className="text-destructive text-xs mb-2">{err}</p>}
-        <div className="grid grid-cols-3 gap-3 w-full max-w-xs mt-6">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button key={n} onClick={() => press(String(n))} className="h-14 rounded-2xl bg-surface-elevated text-xl font-semibold active:bg-surface">
-              {n}
-            </button>
-          ))}
-          <span />
-          <button onClick={() => press("0")} className="h-14 rounded-2xl bg-surface-elevated text-xl font-semibold active:bg-surface">0</button>
-          <button onClick={() => { setPin(pin.slice(0, -1)); setErr(null); }} className="h-14 rounded-2xl text-sm">Del</button>
-        </div>
+        <p className="text-sm text-muted-foreground text-center max-w-xs">
+          {err ?? "Enter your wallet passcode to confirm this transaction."}
+        </p>
+      </div>
+      <div className="grid grid-cols-3 gap-3 mt-6">
+        {["1","2","3","4","5","6","7","8","9"].map((k) => (
+          <button
+            key={k}
+            onClick={() => press(k)}
+            className="h-16 rounded-2xl bg-surface-elevated text-2xl font-semibold active:bg-secondary"
+          >
+            {k}
+          </button>
+        ))}
+        <span />
+        <button onClick={() => press("0")} className="h-16 rounded-2xl bg-surface-elevated text-2xl font-semibold active:bg-secondary">0</button>
+        <button onClick={() => { setPin(pin.slice(0, -1)); setErr(null); }} className="h-16 rounded-2xl flex items-center justify-center active:bg-secondary">
+          <Delete className="w-6 h-6" />
+        </button>
       </div>
     </PageShell>
   );

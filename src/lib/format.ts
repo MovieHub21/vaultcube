@@ -16,7 +16,7 @@ export function shortAddr(a: string, head = 6, tail = 6): string {
   return `${a.slice(0, head)}...${a.slice(-tail)}`;
 }
 
-// Simulated typical network fees in native units (demo wallet)
+// Typical network fees in native units
 export const NETWORK_FEE_NATIVE: Record<NetworkCode, number> = {
   BTC: 0.00005,
   ETH: 0.00021,

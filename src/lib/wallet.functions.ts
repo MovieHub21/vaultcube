@@ -48,16 +48,6 @@ export const sendFunds = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: recipient } = await supabase
-      .from("wallet_addresses")
-      .select("user_id,network,address")
-      .eq("address", data.toAddress)
-      .eq("network", data.network)
-      .maybeSingle();
-
-    if (!recipient) throw new Error("Address not found on this network");
-    if (recipient.user_id === userId) throw new Error("You cannot send to your own address");
-
     const { data: sender } = await supabase
       .from("wallet_addresses")
       .select("address")
@@ -72,11 +62,24 @@ export const sendFunds = createServerFn({ method: "POST" })
     );
     if (!bal || Number(bal.amount) < data.amount) throw new Error(`Insufficient ${data.token} balance`);
 
+    // Recipient may be an external address (not registered on Vaultcube).
+    // We still record the transaction so the sender's balance updates.
+    const { data: recipient } = await supabase
+      .from("wallet_addresses")
+      .select("user_id,address")
+      .eq("address", data.toAddress)
+      .eq("network", data.network)
+      .maybeSingle();
+
+    if (recipient && recipient.user_id === userId) {
+      throw new Error("You cannot send to your own address");
+    }
+
     const { data: inserted, error } = await supabase.from("transactions").insert({
       from_user_id: userId,
-      to_user_id: recipient.user_id,
+      to_user_id: recipient?.user_id ?? null,
       from_address: sender.address,
-      to_address: recipient.address,
+      to_address: data.toAddress,
       network: data.network,
       token: data.token,
       amount: data.amount,
@@ -86,6 +89,7 @@ export const sendFunds = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, id: inserted?.id as string };
   });
+
 
 const FundSchema = z.object({
   network: z.string().min(2).max(10),
