@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getMyWallet, getMyTransactions, demoFund, getWatchlist, toggleWatchlist } from "@/lib/wallet.functions";
+import { getMyWallet, getMyTransactions, getWatchlist, toggleWatchlist } from "@/lib/wallet.functions";
 import { PageShell } from "@/components/PageShell";
 import { BottomNav } from "@/components/BottomNav";
 import { TOKENS, tokenKey } from "@/lib/networks";
@@ -26,7 +26,7 @@ function Home() {
   const qc = useQueryClient();
   const fetchWallet = useServerFn(getMyWallet);
   const fetchTx = useServerFn(getMyTransactions);
-  const fund = useServerFn(demoFund);
+  
   const getWl = useServerFn(getWatchlist);
   const toggleWl = useServerFn(toggleWatchlist);
   const [tab, setTab] = useState<Tab>("Crypto");
