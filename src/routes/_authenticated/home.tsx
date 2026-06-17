@@ -86,14 +86,10 @@ function Home() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const fundMut = useMutation({
-    mutationFn: () => fund({ data: { network: "ETH", token: "ETH", amount: 1 } }),
-    onSuccess: () => {
-      toast.success("Funded 1 ETH (demo)");
-      qc.invalidateQueries({ queryKey: ["wallet"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  function onBuy() {
+    toast.info("Buy is coming soon");
+  }
+
 
   function handleScan({ address, network }: { address: string; network: string | null }) {
     setScanOpen(false);
@@ -133,7 +129,7 @@ function Home() {
         <ActionTile icon={<ArrowUp className="w-5 h-5" />} label="Send" onClick={() => navigate({ to: "/send" })} />
         <ActionTile icon={<ArrowDown className="w-5 h-5" />} label="Receive" onClick={() => navigate({ to: "/receive" })} />
         <ActionTile icon={<RotateCw className="w-5 h-5" />} label="Swap" onClick={() => navigate({ to: "/swap" })} />
-        <ActionTile icon={<Plus className="w-5 h-5" />} label="Buy" highlight onClick={() => fundMut.mutate()} />
+        <ActionTile icon={<Plus className="w-5 h-5" />} label="Buy" highlight onClick={onBuy} />
       </div>
 
       <div className="mt-6 rounded-2xl bg-surface p-3 flex items-center gap-3">
