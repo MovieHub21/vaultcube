@@ -44,7 +44,7 @@ function Settings() {
 
       <Section title="Account">
         <Row icon={<User className="w-4 h-4" />} label="Profile" />
-        <Row icon={<Lock className="w-4 h-4" />} label="Security & Passcode" to="/passcode" />
+        <Row icon={<Lock className="w-4 h-4" />} label="Security & Passcode" to="/security" />
         <Row icon={<Bell className="w-4 h-4" />} label="Notifications" />
       </Section>
 

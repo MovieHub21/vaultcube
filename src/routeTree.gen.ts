@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedSwapRouteImport } from './routes/_authenticated/swap'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
+import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedReceiveRouteImport } from './routes/_authenticated/receive'
 import { Route as AuthenticatedPerpsRouteImport } from './routes/_authenticated/perps'
 import { Route as AuthenticatedMarketsRouteImport } from './routes/_authenticated/markets'
@@ -77,6 +78,11 @@ const AuthenticatedSendRoute = AuthenticatedSendRouteImport.update({
   path: '/send',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReceiveRoute = AuthenticatedReceiveRouteImport.update({
   id: '/receive',
   path: '/receive',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/markets': typeof AuthenticatedMarketsRoute
   '/perps': typeof AuthenticatedPerpsRoute
   '/receive': typeof AuthenticatedReceiveRoute
+  '/security': typeof AuthenticatedSecurityRoute
   '/send': typeof AuthenticatedSendRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/swap': typeof AuthenticatedSwapRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/markets': typeof AuthenticatedMarketsRoute
   '/perps': typeof AuthenticatedPerpsRoute
   '/receive': typeof AuthenticatedReceiveRoute
+  '/security': typeof AuthenticatedSecurityRoute
   '/send': typeof AuthenticatedSendRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/swap': typeof AuthenticatedSwapRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/_authenticated/markets': typeof AuthenticatedMarketsRoute
   '/_authenticated/perps': typeof AuthenticatedPerpsRoute
   '/_authenticated/receive': typeof AuthenticatedReceiveRoute
+  '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/swap': typeof AuthenticatedSwapRoute
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
     | '/markets'
     | '/perps'
     | '/receive'
+    | '/security'
     | '/send'
     | '/settings'
     | '/swap'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/markets'
     | '/perps'
     | '/receive'
+    | '/security'
     | '/send'
     | '/settings'
     | '/swap'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/_authenticated/markets'
     | '/_authenticated/perps'
     | '/_authenticated/receive'
+    | '/_authenticated/security'
     | '/_authenticated/send'
     | '/_authenticated/settings'
     | '/_authenticated/swap'
@@ -320,6 +332,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSendRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/security': {
+      id: '/_authenticated/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof AuthenticatedSecurityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/receive': {
       id: '/_authenticated/receive'
       path: '/receive'
@@ -386,6 +405,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMarketsRoute: typeof AuthenticatedMarketsRoute
   AuthenticatedPerpsRoute: typeof AuthenticatedPerpsRoute
   AuthenticatedReceiveRoute: typeof AuthenticatedReceiveRoute
+  AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedSendRoute: typeof AuthenticatedSendRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSwapRoute: typeof AuthenticatedSwapRoute
@@ -400,6 +420,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMarketsRoute: AuthenticatedMarketsRoute,
   AuthenticatedPerpsRoute: AuthenticatedPerpsRoute,
   AuthenticatedReceiveRoute: AuthenticatedReceiveRoute,
+  AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedSendRoute: AuthenticatedSendRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSwapRoute: AuthenticatedSwapRoute,
@@ -422,13 +443,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
