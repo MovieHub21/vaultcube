@@ -3,10 +3,16 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "framework": null,
-  "rewrites": [
+    "functions": {
+    "app/server.ts": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/"
+      "src": "/(.*)",
+      "dest": "/api/server"
     }
   ]
+}
 }
