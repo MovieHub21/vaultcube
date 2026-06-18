@@ -26,6 +26,7 @@ import { Route as AuthenticatedMarketsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiPublicDepositRouteImport } from './routes/api/public/deposit'
 import { Route as AuthenticatedTxIdRouteImport } from './routes/_authenticated/tx.$id'
 import { Route as AuthenticatedCoinIdRouteImport } from './routes/_authenticated/coin.$id'
 
@@ -113,6 +114,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicDepositRoute = ApiPublicDepositRouteImport.update({
+  id: '/api/public/deposit',
+  path: '/api/public/deposit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedTxIdRoute = AuthenticatedTxIdRouteImport.update({
   id: '/tx/$id',
   path: '/tx/$id',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/swap': typeof AuthenticatedSwapRoute
   '/coin/$id': typeof AuthenticatedCoinIdRoute
   '/tx/$id': typeof AuthenticatedTxIdRoute
+  '/api/public/deposit': typeof ApiPublicDepositRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/swap': typeof AuthenticatedSwapRoute
   '/coin/$id': typeof AuthenticatedCoinIdRoute
   '/tx/$id': typeof AuthenticatedTxIdRoute
+  '/api/public/deposit': typeof ApiPublicDepositRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/_authenticated/swap': typeof AuthenticatedSwapRoute
   '/_authenticated/coin/$id': typeof AuthenticatedCoinIdRoute
   '/_authenticated/tx/$id': typeof AuthenticatedTxIdRoute
+  '/api/public/deposit': typeof ApiPublicDepositRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/swap'
     | '/coin/$id'
     | '/tx/$id'
+    | '/api/public/deposit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/swap'
     | '/coin/$id'
     | '/tx/$id'
+    | '/api/public/deposit'
   id:
     | '__root__'
     | '/'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/_authenticated/swap'
     | '/_authenticated/coin/$id'
     | '/_authenticated/tx/$id'
+    | '/api/public/deposit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -258,6 +270,7 @@ export interface RootRouteChildren {
   PasscodeRoute: typeof PasscodeRoute
   ReadyRoute: typeof ReadyRoute
   SignupRoute: typeof SignupRoute
+  ApiPublicDepositRoute: typeof ApiPublicDepositRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -381,6 +394,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/deposit': {
+      id: '/api/public/deposit'
+      path: '/api/public/deposit'
+      fullPath: '/api/public/deposit'
+      preLoaderRoute: typeof ApiPublicDepositRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/tx/$id': {
       id: '/_authenticated/tx/$id'
       path: '/tx/$id'
@@ -439,6 +459,7 @@ const rootRouteChildren: RootRouteChildren = {
   PasscodeRoute: PasscodeRoute,
   ReadyRoute: ReadyRoute,
   SignupRoute: SignupRoute,
+  ApiPublicDepositRoute: ApiPublicDepositRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
